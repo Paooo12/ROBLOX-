@@ -1,1 +1,1 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/username/repo/main/teleport_button.lua", true))()# ROBLOX-
+loadstring(game:HttpGet("https://raw.githubusercontent.com/username/repo/main/teleport_button.lua", true))()
