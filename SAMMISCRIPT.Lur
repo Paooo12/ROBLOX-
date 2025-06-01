@@ -1,0 +1,113 @@
+local Players, RunService = game:GetService("Players"), game:GetService("RunService")
+local player = Players.LocalPlayer
+
+-- ปรับค่า offsetY ให้มากขึ้นเพื่อมุดลึกกว่าเดิม
+local isUnderGround = false
+local offsetY = -15  -- เพิ่มจาก -5 เป็น -15 (สามารถปรับค่าได้ตามต้องการ)
+local character, humanoidRootPart, humanoid, lockedCFrame
+
+-- สร้าง GUI
+local playerGui = player:WaitForChild("PlayerGui")
+local screenGui = playerGui:FindFirstChild("UndergroundGui") or Instance.new("ScreenGui")
+screenGui.Name = "UndergroundGui_" .. tostring(math.random(1,10000))
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
+
+local toggleButton = screenGui:FindFirstChild("ToggleButton") or Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Size = UDim2.new(0, 150, 0, 50)
+toggleButton.Position = UDim2.new(0, 10, 0, 10)
+toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+toggleButton.TextColor3 = Color3.new(1, 1, 1)
+toggleButton.Text = "มุดใต้พื้น (ความลึก: " .. math.abs(offsetY) .. ")"
+toggleButton.Parent = screenGui
+
+-- เพิ่ม Slider เพื่อปรับความลึก
+local depthSlider = Instance.new("TextButton")
+depthSlider.Name = "DepthSlider"
+depthSlider.Size = UDim2.new(0, 150, 0, 30)
+depthSlider.Position = UDim2.new(0, 10, 0, 65)
+depthSlider.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+depthSlider.TextColor3 = Color3.new(1, 1, 1)
+depthSlider.Text = "ปรับความลึก: " .. math.abs(offsetY)
+depthSlider.Parent = screenGui
+
+local function lockPosition(cf)
+    if humanoidRootPart then
+        humanoidRootPart.Anchored = true
+        humanoidRootPart.CFrame = cf
+    end
+end
+
+local function unlockPosition()
+    if humanoidRootPart then humanoidRootPart.Anchored = false end
+end
+
+local function flipCharacter(enable)
+    if not (character and humanoidRootPart and humanoid) then return end
+    
+    if enable then
+        humanoid.PlatformStand = true
+        local pos = humanoidRootPart.Position
+        lockedCFrame = CFrame.new(pos.X, pos.Y + offsetY, pos.Z) * CFrame.Angles(math.rad(180), 0, 0)
+        lockPosition(lockedCFrame)
+    else
+        humanoid.PlatformStand = false
+        unlockPosition()
+        local pos = humanoidRootPart.Position
+        humanoidRootPart.CFrame = CFrame.new(pos.X, pos.Y - offsetY, pos.Z)
+        lockedCFrame = nil
+    end
+end
+
+local function updateDepth(newDepth)
+    offsetY = -math.abs(newDepth)  -- ทำให้ค่าเป็นลบเสมอ
+    toggleButton.Text = "มุดใต้พื้น (ความลึก: " .. math.abs(offsetY) .. ")"
+    depthSlider.Text = "ปรับความลึก: " .. math.abs(offsetY)
+    
+    -- หากกำลังมุดอยู่ ให้อัปเดตตำแหน่งใหม่
+    if isUnderGround and humanoidRootPart then
+        local pos = humanoidRootPart.Position
+        lockedCFrame = CFrame.new(pos.X, pos.Y + offsetY, pos.Z) * CFrame.Angles(math.rad(180), 0, 0)
+        lockPosition(lockedCFrame)
+    end
+end
+
+local function onCharacterAdded(char)
+    character = char
+    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    humanoid = character:WaitForChild("Humanoid")
+    isUnderGround = false
+    toggleButton.Text = "มุดใต้พื้น (ความลึก: " .. math.abs(offsetY) .. ")"
+    unlockPosition()
+    lockedCFrame = nil
+end
+
+toggleButton.MouseButton1Click:Connect(function()
+    if not (character and humanoidRootPart and humanoid) then return end
+    isUnderGround = not isUnderGround
+    flipCharacter(isUnderGround)
+    toggleButton.Text = isUnderGround and "ยกเลิกมุดใต้พื้น" or "มุดใต้พื้น (ความลึก: " .. math.abs(offsetY) .. ")"
+end)
+
+-- เพิ่มการคลิกเพื่อปรับความลึก (สลับระหว่าง 5, 10, 15)
+depthSlider.MouseButton1Click:Connect(function()
+    local depths = {5, 10, 15, 20, 30}  -- ระดับความลึกที่สามารถเลือกได้
+    local currentIndex = 1
+    for i, depth in ipairs(depths) do
+        if math.abs(offsetY) == depth then
+            currentIndex = i % #depths + 1
+            break
+        end
+    end
+    updateDepth(depths[currentIndex])
+end)
+
+RunService.RenderStepped:Connect(function()
+    if isUnderGround and lockedCFrame and humanoidRootPart then
+        humanoidRootPart.CFrame = lockedCFrame
+    end
+end)
+
+if player.Character then onCharacterAdded(player.Character) end
+player.CharacterAdded:Connect(onCharacterAdded)
